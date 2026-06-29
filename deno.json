@@ -1,0 +1,17 @@
+{
+  "name": "@ededitit/workspace",
+  "version": "0.0.1",
+  "tasks": {
+    "bootstrap": "bash scripts/bootstrap.sh"
+  },
+  "workspace": [
+    "vendor/kerebron",
+    "vendor/templit"
+  ],
+  "fmt": {
+    "exclude": ["vendor"]
+  },
+  "lint": {
+    "exclude": ["vendor"]
+  }
+}

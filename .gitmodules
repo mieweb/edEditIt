@@ -1,0 +1,21 @@
+[submodule "vendor/lsp-toy"]
+	path = vendor/lsp-toy
+	url = https://github.com/horner/lsp-toy.git
+[submodule "vendor/kerebron"]
+	path = vendor/kerebron
+	url = https://github.com/mieweb/kerebron.git
+[submodule "vendor/yabelfish"]
+	path = vendor/yabelfish
+	url = https://github.com/mieweb/yabelfish.git
+[submodule "vendor/esheet"]
+	path = vendor/esheet
+	url = https://github.com/mieweb/eSheet.git
+[submodule "vendor/templit"]
+	path = vendor/templit
+	url = https://github.com/mieweb/templit.git
+[submodule "vendor/hey-ozwell"]
+	path = vendor/hey-ozwell
+	url = https://github.com/mieweb/hey-ozwell.git
+[submodule "vendor/osheet"]
+	path = vendor/osheet
+	url = https://github.com/mieweb/osheet.git

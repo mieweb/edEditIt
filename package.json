@@ -1,0 +1,31 @@
+{
+  "name": "ededitit",
+  "displayName": "edEditIt",
+  "description": "Kerebron-powered editor for Markdown, eSheets, voice, and clinical data.",
+  "version": "0.0.1",
+  "publisher": "mieweb",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "main": "./client/out/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "ededitit.markdown",
+        "displayName": "edEditIt (Kerebron)",
+        "selector": [{ "filenamePattern": "*.md" }],
+        "priority": "option"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./client",
+    "watch": "tsc -watch -p ./client"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0"
+  }
+}
