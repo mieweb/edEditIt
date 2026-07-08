@@ -12,7 +12,7 @@
       img-src __CSP_SOURCE__ data:;
       frame-src http://127.0.0.1:* http://localhost:*;
       script-src 'nonce-__NONCE__' 'wasm-unsafe-eval';
-      connect-src __CSP_SOURCE__ http://127.0.0.1:* http://localhost:*;
+      connect-src __CSP_SOURCE__ wasm: http://127.0.0.1:* http://localhost:*;
     "
         />
         <title>MarkdownEditor</title>

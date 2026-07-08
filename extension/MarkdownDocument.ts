@@ -1,79 +1,104 @@
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 
-import { Disposable } from './dispose.js';
+import { Disposable } from "./dispose.js";
 
 export interface MarkdownDocumentDelegate {
-    getFileData(): Promise<Uint8Array>;
+  getFileData(mime?: string): Promise<Uint8Array>;
 }
 
-export class MarkdownDocument extends Disposable implements vscode.CustomDocument {
-    private readonly _uri: vscode.Uri;
+export class MarkdownDocument extends Disposable
+  implements vscode.CustomDocument {
+  private readonly _uri: vscode.Uri;
 
-    private _documentData: Uint8Array;
+  private _documentData: Uint8Array;
 
-    private readonly _delegate: MarkdownDocumentDelegate;
+  private readonly _delegate: MarkdownDocumentDelegate;
 
-    private constructor(
-        uri: vscode.Uri,
-        initialContent: Uint8Array,
-        delegate: MarkdownDocumentDelegate
-    ) {
-        super();
-        this._uri = uri;
-        this._delegate = delegate;
-        this._documentData = initialContent;
+  private constructor(
+    uri: vscode.Uri,
+    initialContent: Uint8Array,
+    delegate: MarkdownDocumentDelegate,
+  ) {
+    super();
+    this._uri = uri;
+    this._delegate = delegate;
+    this._documentData = initialContent;
+  }
+
+  public async getFileData(mime?: string): Promise<Uint8Array> {
+    const data = await this._delegate.getFileData(mime);
+    this._documentData = data;
+    return data;
+  }
+
+  static async create(
+    uri: vscode.Uri,
+    backupId: string | undefined,
+    delegate: MarkdownDocumentDelegate,
+  ): Promise<MarkdownDocument | PromiseLike<MarkdownDocument>> {
+    const dataFile = typeof backupId === "string"
+      ? vscode.Uri.parse(backupId)
+      : uri;
+    const fileData = await MarkdownDocument.readFile(dataFile);
+    return new MarkdownDocument(uri, fileData, delegate);
+  }
+
+  private static async readFile(uri: vscode.Uri): Promise<Uint8Array> {
+    if (uri.scheme === "untitled") {
+      return new Uint8Array();
     }
+    return new Uint8Array(await vscode.workspace.fs.readFile(uri));
+  }
 
-    public async getFileData(): Promise<Uint8Array> {
-        const data = await this._delegate.getFileData();
-        this._documentData = data;
-        return data;
-    }
+  public get uri() {
+    return this._uri;
+  }
 
-    static async create(
-        uri: vscode.Uri,
-        backupId: string | undefined,
-        delegate: MarkdownDocumentDelegate,
-    ): Promise<MarkdownDocument | PromiseLike<MarkdownDocument>> {
-        const dataFile = typeof backupId === 'string' ? vscode.Uri.parse(backupId) : uri;
-        const fileData = await MarkdownDocument.readFile(dataFile);
-        return new MarkdownDocument(uri, fileData, delegate);
-    }
+  public get documentData(): Uint8Array {
+    return this._documentData;
+  }
 
-    private static async readFile(uri: vscode.Uri): Promise<Uint8Array> {
-        vscode.window.showInformationMessage('uuu' + uri);
-        if (uri.scheme === 'untitled') {
-            return new Uint8Array();
-        }
-        return new Uint8Array(await vscode.workspace.fs.readFile(uri));
-    }
+  private readonly _onDidDispose = this._register(
+    new vscode.EventEmitter<void>(),
+  );
+  /**
+   * Fired when the document is disposed of.
+   */
+  public readonly onDidDispose = this._onDidDispose.event;
 
-    public get uri() { return this._uri; }
+  private readonly _onDidChangeDocument = this._register(
+    new vscode.EventEmitter<{
+      readonly content?: Uint8Array;
+    }>(),
+  );
 
-    public get documentData(): Uint8Array { return this._documentData; }
+  public readonly onDidChangeContent = this._onDidChangeDocument.event;
 
-    private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
-    /**
-     * Fired when the document is disposed of.
-     */
-    public readonly onDidDispose = this._onDidDispose.event;
+  private readonly _onDidChange = this._register(
+    new vscode.EventEmitter<{
+      readonly label: string;
+      undo(): void;
+      redo(): void;
+    }>(),
+  );
 
-    private readonly _onDidChangeDocument = this._register(new vscode.EventEmitter<{
-        readonly content?: Uint8Array;
-    }>());
+  public readonly onDidChange = this._onDidChange.event;
 
-    public readonly onDidChangeContent = this._onDidChangeDocument.event;
+  private _dirty = false;
 
-    private readonly _onDidChange = this._register(new vscode.EventEmitter<{
-        readonly label: string,
-        undo(): void,
-        redo(): void,
-    }>());
+  public get isDirty(): boolean {
+    return this._dirty;
+  }
 
-    public readonly onDidChange = this._onDidChange.event;
+  public markDirty(): void {
+    this._dirty = true;
+  }
+  public markClean(): void {
+    this._dirty = false;
+  }
 
-    dispose(): void {
-        this._onDidDispose.fire();
-        super.dispose();
-    }
+  dispose(): void {
+    this._onDidDispose.fire();
+    super.dispose();
+  }
 }
