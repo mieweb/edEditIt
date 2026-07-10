@@ -2,7 +2,6 @@
   "name": "ededitit",
   "displayName": "edEditIt",
   "description": "Kerebron-powered editor for Markdown, eSheets, voice, and clinical data.",
-  "version": "0.0.1",
   "publisher": "mieweb",
   "license": "MIT",
   "engines": {
