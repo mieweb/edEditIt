@@ -2,6 +2,7 @@
   "name": "ededitit",
   "displayName": "edEditIt",
   "description": "Kerebron-powered editor for Markdown, eSheets, voice, and clinical data.",
+  "version": "0.0.0",
   "publisher": "mieweb",
   "license": "MIT",
   "engines": {
@@ -74,6 +75,11 @@
       "command": "markdownEditor.replaceAll",
       "title": "Replace All",
       "category": "Markdown Editor"
+    },
+    {
+      "command": "markdownEditor.exportPdf",
+      "title": "Export to PDF",
+      "category": "Markdown Editor"
     }
   ],
   "keybindings": [
@@ -100,6 +106,12 @@
       "key": "shift+f3",
       "mac": "cmd+shift+g",
       "when": "activeCustomEditorId == markdownEditor.markdownEditor"
+    },
+    {
+      "command": "markdownEditor.exportPdf",
+      "key": "ctrl+shift+e",
+      "mac": "cmd+shift+e",
+      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
     }
   ],
   "scripts": {
@@ -114,10 +126,12 @@
     "lint": "eslint extension",
     "test": "vscode-test"
   },
-  "devDependencies": {
+  "dependencies": {
     "@kerebron/editor": "0.8.5",
     "@kerebron/editor-kits": "0.8.5",
-    "@kerebron/wasm": "0.8.5",
+    "@kerebron/wasm": "0.8.5"
+  },
+  "devDependencies": {
     "@types/node": "20.x",
     "@types/vscode": "^1.101.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
