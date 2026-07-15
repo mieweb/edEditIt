@@ -127,9 +127,9 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@kerebron/editor": "0.8.9",
-    "@kerebron/editor-kits": "0.8.9",
-    "@kerebron/wasm": "0.8.9"
+    "@kerebron/editor": "0.8.5",
+    "@kerebron/editor-kits": "0.8.5",
+    "@kerebron/wasm": "0.8.5"
   },
   "devDependencies": {
     "@types/node": "20.x",
