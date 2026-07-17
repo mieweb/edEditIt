@@ -141,3 +141,5 @@ vite.config.ts.timestamp-*
 # edEditIt build output
 node_modules/
 client/out/
+
+.idea

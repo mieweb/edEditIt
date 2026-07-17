@@ -2,30 +2,133 @@
   "name": "ededitit",
   "displayName": "edEditIt",
   "description": "Kerebron-powered editor for Markdown, eSheets, voice, and clinical data.",
-  "version": "0.0.1",
   "publisher": "mieweb",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.101.0"
   },
-  "categories": ["Other"],
-  "main": "./client/out/extension.js",
+  "categories": [
+    "Other"
+  ],
+  "repository": "TODO",
+  "main": "./dist/index.js",
+  "activationEvents": [],
   "contributes": {
     "customEditors": [
       {
-        "viewType": "ededitit.markdown",
-        "displayName": "edEditIt (Kerebron)",
-        "selector": [{ "filenamePattern": "*.md" }],
-        "priority": "option"
+        "viewType": "markdownEditor",
+        "displayName": "WYSIWYG Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.odt"
+          },
+          {
+            "filenamePattern": "*.md"
+          }
+        ]
       }
     ]
   },
+  "menus": {
+    "commandPalette": [
+      {
+        "command": "editor.action.startFindAction",
+        "when": "activeCustomEditorId != markdownEditor.markdownEditor"
+      }
+    ],
+    "editor/title/context": [],
+    "editor/context": [
+      {
+        "command": "editor.action.startFindAction",
+        "when": "activeCustomEditorId != markdownEditor.markdownEditor"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "command": "markdownEditor.find",
+      "title": "Find",
+      "category": "Markdown Editor"
+    },
+    {
+      "command": "markdownEditor.replace",
+      "title": "Replace",
+      "category": "Markdown Editor"
+    },
+    {
+      "command": "markdownEditor.findNext",
+      "title": "Find Next",
+      "category": "Markdown Editor"
+    },
+    {
+      "command": "markdownEditor.findPrev",
+      "title": "Find Previous",
+      "category": "Markdown Editor"
+    },
+    {
+      "command": "markdownEditor.replaceNext",
+      "title": "Replace Next",
+      "category": "Markdown Editor"
+    },
+    {
+      "command": "markdownEditor.replaceAll",
+      "title": "Replace All",
+      "category": "Markdown Editor"
+    }
+  ],
+  "keybindings": [
+    {
+      "command": "markdownEditor.find",
+      "key": "ctrl+f",
+      "mac": "cmd+f",
+      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
+    },
+    {
+      "command": "markdownEditor.replace",
+      "key": "ctrl+h",
+      "mac": "cmd+alt+f",
+      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
+    },
+    {
+      "command": "markdownEditor.findNext",
+      "key": "f3",
+      "mac": "cmd+g",
+      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
+    },
+    {
+      "command": "markdownEditor.findPrev",
+      "key": "shift+f3",
+      "mac": "cmd+shift+g",
+      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
+    }
+  ],
   "scripts": {
-    "compile": "tsc -p ./client",
-    "watch": "tsc -watch -p ./client"
+    "package": "vsce package",
+    "vscode:prepublish": "npm run compile",
+    "build:webview": "esbuild extension/webview/main.ts --bundle --format=esm --platform=browser --outdir=dist/webview --entry-names=main --asset-names=assets/[name] --loader:.ttf=file --external:fs/promises --external:module --external:fs --external:path --external:url",
+    "watch:webview": "esbuild extension/webview/main.ts --bundle --format=esm --platform=browser --outdir=dist/webview --entry-names=main --asset-names=assets/[name] --loader:.ttf=file --watch --external:fs/promises --external:module --external:fs --external:path --external:url",
+    "compile": "npm run build:webview && tsc --noCheck -p ./tsconfig.json --outDir ./dist",
+    "watch:ts": "tsc -watch --noCheck -p ./tsconfig.json --outDir ./dist",
+    "watch": "concurrently -k \"npm:watch:ts\" \"npm:watch:webview\"",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint extension",
+    "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.90.0",
-    "typescript": "^5.4.0"
+    "@kerebron/editor": "0.8.5",
+    "@kerebron/editor-kits": "0.8.5",
+    "@kerebron/wasm": "0.8.5",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.101.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/codicons": "^0.0.45",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "3.9.1",
+    "concurrently": "^10.0.3",
+    "esbuild": "^0.28.1",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3"
   }
 }
