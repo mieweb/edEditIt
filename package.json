@@ -27,6 +27,9 @@
           },
           {
             "filenamePattern": "*.md"
+          },
+          {
+            "filenamePattern": "*.ededit"
           }
         ]
       }
@@ -112,6 +115,19 @@
         "key": "ctrl+shift+e",
         "mac": "cmd+shift+e",
         "when": "activeCustomEditorId == 'ededitit.markdownEditor'"
+      }
+    ],
+    "languages": [
+      {
+        "id": "ededit",
+        "aliases": [
+          "edEditIt",
+          "ededit"
+        ],
+        "extensions": [
+          ".ededit"
+        ],
+        "configuration": "./language-configuration.json"
       }
     ]
   },
