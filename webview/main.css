@@ -1,0 +1,22 @@
+/* Webview-local styles for the Kerebron Markdown editor.
+   Kerebron core styles are imported via @kerebron/editor/assets/index.css. */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-font-family);
+}
+
+.editor-host {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 1rem 1.25rem;
+}
+
+.editor-host:focus {
+  outline: none;
+}

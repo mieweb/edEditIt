@@ -2,12 +2,68 @@
   "name": "@ededitit/workspace",
   "version": "0.0.1",
   "tasks": {
-    "bootstrap": "bash scripts/bootstrap.sh"
+    "bootstrap": "bash scripts/bootstrap.sh",
+    "build:webview": "deno run -A npm:vite build"
   },
   "workspace": [
-    "vendor/kerebron",
+    "vendor/kerebron/packages/editor",
+    "vendor/kerebron/packages/editor-browserless",
+    "vendor/kerebron/packages/editor-react",
+    "vendor/kerebron/packages/editor-kits",
+    "vendor/kerebron/packages/extension-basic-editor",
+    "vendor/kerebron/packages/extension-tables",
+    "vendor/kerebron/packages/extension-menu",
+    "vendor/kerebron/packages/extension-menu-legacy",
+    "vendor/kerebron/packages/extension-markdown",
+    "vendor/kerebron/packages/extension-odt",
+    "vendor/kerebron/packages/extension-yjs",
+    "vendor/kerebron/packages/extension-lsp",
+    "vendor/kerebron/packages/extension-codejar",
+    "vendor/kerebron/packages/extension-autocomplete",
+    "vendor/kerebron/packages/extension-dev-toolkit",
+    "vendor/kerebron/packages/extension-server-hono",
+    "vendor/kerebron/packages/odt-wasm",
+    "vendor/kerebron/packages/wasm",
+    "vendor/kerebron/packages/test-utils",
+    "vendor/kerebron/packages/tree-sitter",
+    "vendor/kerebron/packages/legacy-compat",
+    "vendor/kerebron/packages/custom-elements",
     "vendor/templit"
   ],
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "@std/fs": "jsr:@std/fs@1.0.19",
+    "@std/path": "jsr:@std/path@1.1.2",
+    "asserts": "https://deno.land/std@0.178.0/testing/asserts.ts",
+
+    "prosemirror-state": "npm:prosemirror-state@1.4.3",
+    "prosemirror-view": "npm:prosemirror-view@1.40.0",
+    "prosemirror-model": "npm:prosemirror-model@1.25.3",
+    "prosemirror-transform": "npm:prosemirror-transform@1.10.4",
+    "prosemirror-history": "npm:prosemirror-history@1.4.1",
+    "prosemirror-dev-toolkit": "npm:prosemirror-dev-toolkit@1.1.8",
+
+    "mathml-to-latex": "npm:mathml-to-latex@1.5.0",
+    "mathml2latex": "npm:mathml2latex@1.1.3",
+
+    "yjs": "npm:yjs@13.6.30",
+    "y-protocols": "npm:y-protocols@1.0.6",
+    "lib0": "npm:lib0@0.2.109",
+    "orderedmap": "npm:orderedmap@latest",
+
+    "@xmldom/xmldom": "npm:@xmldom/xmldom@0.9.10",
+    "linkedom": "npm:linkedom@0.18.12",
+
+    "vscode-languageserver-protocol": "npm:vscode-languageserver-protocol@3.17.5",
+    "vscode-languageserver-textdocument": "npm:vscode-languageserver-textdocument@1.0.12",
+
+    "vite": "npm:vite@7.1.5",
+    "vite-plugin-wasm": "npm:vite-plugin-wasm@3.6.0",
+
+    "web-tree-sitter": "npm:web-tree-sitter@0.26.6"
+  },
+  "unstable": ["raw-imports"],
+  "nodeModulesDir": "auto",
   "fmt": {
     "exclude": ["vendor"]
   },

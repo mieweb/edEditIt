@@ -26,9 +26,9 @@ sibling repos are vendored as git submodules under `vendor/` for DRY reuse.
 - [x] `plan.md` checklist
 
 ### Phase 1 — Kerebron as Markdown editor (VS Code)
-- [ ] Register `CustomTextEditorProvider` for `.md`
-- [ ] Bundle Kerebron `editor` + `extension-markdown` in webview
-- [ ] Sync document ↔ ProseMirror via `WorkspaceEdit`
+- [x] Register `CustomTextEditorProvider` for `.ededit` (Markdown content, no clash with built-in `.md`)
+- [x] Bundle Kerebron `editor` + `extension-markdown` in webview
+- [x] Sync document ↔ ProseMirror via `WorkspaceEdit`
 
 ### Phase 2 — osheet → markdown bridge
 - [ ] Map eSheet field types → markdown via templit

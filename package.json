@@ -11,18 +11,29 @@
   "categories": ["Other"],
   "main": "./client/out/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "ededit",
+        "aliases": ["edEditIt", "ededit"],
+        "extensions": [".ededit"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
     "customEditors": [
       {
         "viewType": "ededitit.markdown",
         "displayName": "edEditIt (Kerebron)",
-        "selector": [{ "filenamePattern": "*.md" }],
-        "priority": "option"
+        "selector": [{ "filenamePattern": "*.ededit" }],
+        "priority": "default"
       }
     ]
   },
   "scripts": {
     "compile": "tsc -p ./client",
-    "watch": "tsc -watch -p ./client"
+    "watch": "tsc -watch -p ./client",
+    "build:webview": "deno run -A npm:vite build",
+    "build": "npm run build:webview && npm run compile",
+    "vscode:prepublish": "npm run build"
   },
   "devDependencies": {
     "@types/vscode": "^1.90.0",
