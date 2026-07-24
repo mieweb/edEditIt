@@ -57,9 +57,12 @@ function greet(name: string): string {
 }
 ```
 
-```python
-def fib(n: int) -> int:
-    return n if n < 2 else fib(n - 1) + fib(n - 2)
+```json
+{
+  "name": "edEditIt",
+  "features": ["headings", "lists", "tables", "code"],
+  "wysiwyg": true
+}
 ```
 
 ## Table
@@ -84,7 +87,7 @@ Visit the [edEditIt repository](https://github.com/mieweb/edEditIt).
 
 ## Escapes and edge cases
 
-Literal asterisks: \*not italic\*. HTML entity: &amp;. Emoji: 🎉
+Literal asterisks: \*not italic\*. Ampersand: &. Emoji: 🎉
 
 Very long line to test soft wrapping: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
 
