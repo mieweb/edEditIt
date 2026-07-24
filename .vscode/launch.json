@@ -10,7 +10,9 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}"
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"${workspaceFolder}/samples/simple.md",
+				"${workspaceFolder}/samples/comprehensive.md"
 			],
 			"outFiles": [
 				"${workspaceFolder}/dist/**/*.js"
