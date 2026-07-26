@@ -115,10 +115,12 @@
     "lint": "eslint extension",
     "test": "vscode-test"
   },
-  "devDependencies": {
+  "dependencies": {
     "@kerebron/editor": "0.8.5",
     "@kerebron/editor-kits": "0.8.5",
-    "@kerebron/wasm": "0.8.5",
+    "@kerebron/wasm": "0.8.5"
+  },
+  "devDependencies": {
     "@types/node": "20.x",
     "@types/vscode": "^1.101.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
