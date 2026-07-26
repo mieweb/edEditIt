@@ -1,0 +1,3 @@
+[submodule "vendor/templit"]
+	path = vendor/templit
+	url = https://github.com/mieweb/templit.git
