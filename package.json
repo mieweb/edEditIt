@@ -75,6 +75,11 @@
       "command": "markdownEditor.replaceAll",
       "title": "Replace All",
       "category": "Markdown Editor"
+    },
+    {
+      "command": "markdownEditor.exportPdf",
+      "title": "Export to PDF",
+      "category": "Markdown Editor"
     }
   ],
   "keybindings": [
@@ -101,6 +106,12 @@
       "key": "shift+f3",
       "mac": "cmd+shift+g",
       "when": "activeCustomEditorId == markdownEditor.markdownEditor"
+    },
+    {
+      "command": "markdownEditor.exportPdf",
+      "key": "ctrl+shift+e",
+      "mac": "cmd+shift+e",
+      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
     }
   ],
   "scripts": {
@@ -116,9 +127,9 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@kerebron/editor": "0.8.7",
-    "@kerebron/editor-kits": "0.8.7",
-    "@kerebron/wasm": "0.8.7"
+    "@kerebron/editor": "0.8.9",
+    "@kerebron/editor-kits": "0.8.9",
+    "@kerebron/wasm": "0.8.9"
   },
   "devDependencies": {
     "@types/node": "20.x",

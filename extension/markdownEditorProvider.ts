@@ -54,6 +54,9 @@ export class MarkdownEditorProvider
     subs.push(vscode.commands.registerCommand(
       "markdownEditor.replaceAll", () => provider.runReplaceAll(),
     ));
+    subs.push(vscode.commands.registerCommand(
+      "markdownEditor.exportPdf", () => provider.exportToPdf(),
+    ));
 
     return providerRegistration;
   }
@@ -225,7 +228,7 @@ export class MarkdownEditorProvider
     token: vscode.CancellationToken,
   ): Promise<MarkdownDocument> {
     this.output.appendLine(`openCustomDocument ` + uri);
-    this.output.show(true); // optional
+    this.showOutput();
 
     const document: MarkdownDocument = await MarkdownDocument.create(
       uri,
@@ -428,7 +431,7 @@ export class MarkdownEditorProvider
 
     webviewPanel.webview.onDidReceiveMessage(async (e) => {
       this.output.appendLine(`onDidReceiveMessage ` + e.type);
-      this.output.show(true); // optional
+      this.showOutput();
 
       const baseDir = webviewPanel.webview.asWebviewUri(
         vscode.Uri.joinPath(document.uri, ".."),
@@ -470,6 +473,13 @@ export class MarkdownEditorProvider
     "Markdown Webview",
   );
 
+  /** Reveal the output channel only when running under the extension debugger. */
+  private showOutput(): void {
+    if (this.context.extensionMode === vscode.ExtensionMode.Development) {
+      this.output.show(true);
+    }
+  }
+
   private postMessageWithResponse<R = unknown>(
     panel: vscode.WebviewPanel,
     type: string,
@@ -481,7 +491,7 @@ export class MarkdownEditorProvider
     );
 
     this.output.appendLine(`postMessageWithResponse ` + type);
-    this.output.show(true); // optional
+    this.showOutput();
 
     panel.webview.postMessage({ type, requestId, body });
     return p;
@@ -494,7 +504,7 @@ export class MarkdownEditorProvider
     debug: string,
   ): void {
     this.output.appendLine(`postMessage ` + type + " " + debug);
-    this.output.show(true); // optional
+    this.showOutput();
 
     panel.webview.postMessage({ type, body });
   }
@@ -518,7 +528,7 @@ export class MarkdownEditorProvider
       const level = message.body?.level ?? "log";
       const text = message.body?.text ?? "";
       this.output.appendLine(`[${level}] ${text}`);
-      this.output.show(true); // optional
+      this.showOutput();
       return;
     }
 
@@ -698,6 +708,12 @@ export class MarkdownEditorProvider
     const panel = this.getActivePanel();
     if (!panel || !this.lastSearch) return;
     this.postMessage(panel, "replaceAll", { $to: "iframe" }, "replaceAll");
+  }
+
+  private async exportToPdf(): Promise<void> {
+    const panel = this.getActivePanel();
+    if (!panel) return;
+    this.postMessage(panel, "printPdf", { $to: "iframe" }, "printPdf");
   }
 
 }
