@@ -7,7 +7,7 @@ import { MarkdownDocument } from "./MarkdownDocument.js";
 
 export class MarkdownEditorProvider
   implements vscode.CustomEditorProvider<MarkdownDocument> {
-  public static readonly viewType = "markdownEditor";
+  public static readonly viewType = "ededitit.markdownEditor";
 
   private readonly webviews = new WebviewCollection();
   private activePanel: vscode.WebviewPanel | undefined;
@@ -21,44 +21,38 @@ export class MarkdownEditorProvider
 
   public static register(
     context: vscode.ExtensionContext,
-  ): vscode.Disposable {
+  ): void {
     const provider = new MarkdownEditorProvider(context);
-    const providerRegistration = vscode.window.registerCustomEditorProvider(
-      MarkdownEditorProvider.viewType,
-      provider,
-    );
 
-    const subs = context.subscriptions;
-    subs.push(providerRegistration);
-
-    subs.push(vscode.window.registerCustomEditorProvider(
+    context.subscriptions.push(vscode.window.registerCustomEditorProvider(
       MarkdownEditorProvider.viewType,
       provider,
     ));
 
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.find", () => provider.runFind(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.replace", () => provider.runReplace(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.findNext", () => provider.runFindNext(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.findPrev", () => provider.runFindPrev(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.replaceNext", () => provider.runReplaceNext(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.replaceAll", () => provider.runReplaceAll(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.exportPdf", () => provider.exportToPdf(),
     ));
-
-    return providerRegistration;
+    context.subscriptions.push(vscode.commands.registerCommand(
+      "markdownEditor.openBuiltinEditor", (uri: vscode.Uri) => provider.openBuiltinEditor(uri),
+    ));
   }
 
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -227,8 +221,7 @@ export class MarkdownEditorProvider
     openContext: vscode.CustomDocumentOpenContext,
     token: vscode.CancellationToken,
   ): Promise<MarkdownDocument> {
-    this.output.appendLine(`openCustomDocument ` + uri);
-    this.showOutput();
+    this.debug(`openCustomDocument ` + uri);
 
     const document: MarkdownDocument = await MarkdownDocument.create(
       uri,
@@ -243,7 +236,7 @@ export class MarkdownEditorProvider
           }
           const panel = webviewsForDocument[0];
 
-          this.output.appendLine(`getFileData ` + uri);
+          this.debug(`getFileData ` + uri);
 
           const response = await this.postMessageWithResponse<
             number[]
@@ -344,7 +337,7 @@ export class MarkdownEditorProvider
 
             // Read latest lastTextContent (may have changed during debounce)
             const bytes = new TextEncoder().encode(lastTextContent);
-            this.output.appendLine(
+            this.debug(
               `syncing text→custom, ${bytes.length} bytes`,
             );
             for (const webviewPanel of panels) {
@@ -430,8 +423,7 @@ export class MarkdownEditorProvider
     );
 
     webviewPanel.webview.onDidReceiveMessage(async (e) => {
-      this.output.appendLine(`onDidReceiveMessage ` + e.type);
-      this.showOutput();
+      this.debug(`onDidReceiveMessage ` + e.type);
 
       const baseDir = webviewPanel.webview.asWebviewUri(
         vscode.Uri.joinPath(document.uri, ".."),
@@ -469,15 +461,20 @@ export class MarkdownEditorProvider
   private _lastSaveTime = 0;
 
   private readonly _callbacks = new Map<number, (response: any) => void>();
-  private readonly output = vscode.window.createOutputChannel(
+  private static readonly output = vscode.window.createOutputChannel(
     "Markdown Webview",
   );
 
   /** Reveal the output channel only when running under the extension debugger. */
   private showOutput(): void {
     if (this.context.extensionMode === vscode.ExtensionMode.Development) {
-      this.output.show(true);
+      MarkdownEditorProvider.output.show(true);
     }
+  }
+
+  private debug(str: string): void {
+    MarkdownEditorProvider.output.appendLine(str);
+    this.showOutput();
   }
 
   private postMessageWithResponse<R = unknown>(
@@ -490,8 +487,7 @@ export class MarkdownEditorProvider
       this._callbacks.set(requestId, resolve)
     );
 
-    this.output.appendLine(`postMessageWithResponse ` + type);
-    this.showOutput();
+    this.debug(`postMessageWithResponse ` + type);
 
     panel.webview.postMessage({ type, requestId, body });
     return p;
@@ -503,8 +499,7 @@ export class MarkdownEditorProvider
     body: any,
     debug: string,
   ): void {
-    this.output.appendLine(`postMessage ` + type + " " + debug);
-    this.showOutput();
+    this.debug(`postMessage ` + type + " " + debug);
 
     panel.webview.postMessage({ type, body });
   }
@@ -527,8 +522,7 @@ export class MarkdownEditorProvider
     if (message.type === "webviewConsole") {
       const level = message.body?.level ?? "log";
       const text = message.body?.text ?? "";
-      this.output.appendLine(`[${level}] ${text}`);
-      this.showOutput();
+      this.debug(`[${level}] ${text}`);
       return;
     }
 
@@ -714,6 +708,20 @@ export class MarkdownEditorProvider
     const panel = this.getActivePanel();
     if (!panel) return;
     this.postMessage(panel, "printPdf", { $to: "iframe" }, "printPdf");
+  }
+
+  private async openBuiltinEditor(uri: vscode.Uri): Promise<void> {
+    if (!uri) {
+      vscode.window.showErrorMessage('No document URI');
+      return;
+    }
+    
+    await vscode.commands.executeCommand(
+      'vscode.openWith',
+      uri,
+      'default',
+      vscode.ViewColumn.Beside
+    );
   }
 
 }

@@ -82,6 +82,7 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 let baseDir = "";
+let documentTitle = "";
 
 function getExt(fileName: string) {
   const idx = fileName.lastIndexOf(".");
@@ -89,6 +90,67 @@ function getExt(fileName: string) {
     return fileName.substring(idx);
   }
   return "";
+}
+
+function wrapHtmlDocument(title: string, bodyHtml: string): Uint8Array {
+  const safeTitle = title
+    ? title.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    : "Untitled";
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${safeTitle}</title>
+</head>
+<body>
+${bodyHtml}
+</body>
+</html>
+`;
+  return new TextEncoder().encode(html);
+}
+
+async function printDocument(bodyHtml: string): Promise<void> {
+  const html = wrapHtmlDocument(documentTitle, bodyHtml);
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-99999px";
+  iframe.style.top = "0";
+  iframe.style.width = "800px";
+  iframe.style.height = "600px";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  try {
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      report("error", "print: could not access iframe document");
+      return;
+    }
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    // Wait for images/fonts to load before printing
+    await new Promise<void>((resolve) => {
+      if (iframe.contentWindow?.document.readyState === "complete") {
+        resolve();
+      } else {
+        iframe.addEventListener("load", () => resolve(), { once: true });
+      }
+    });
+
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+  } finally {
+    // Remove iframe after a delay to let the print dialog finish
+    setTimeout(() => {
+      if (iframe.parentNode) {
+        document.body.removeChild(iframe);
+      }
+    }, 1000);
+  }
 }
 
 let currentSearch: SearchQuery | null = null;
@@ -99,7 +161,7 @@ try {
       "content",
     ) || "WASM_BASE_URL";
   const editor = CoreEditor.create({
-    uri: "example.md",
+    uri: "example.md", // body.uri?.path
     element: document.getElementById("editor") || undefined,
     assetLoad: createAssetLoad(WASM_BASE_URL),
     editorKits: [
@@ -212,9 +274,12 @@ try {
         }
 
         baseDir = body.baseDir || "";
+        const fileLocation = body.uri?.path ?? "";
+        documentTitle = fileLocation
+          ? fileLocation.substring(fileLocation.lastIndexOf("/") + 1)
+          : "";
 
         try {
-          const fileLocation = body.uri?.path ?? "";
           const ext = fileLocation.split(".").pop()?.toLowerCase();
           switch (ext) {
             case "odt":
@@ -246,9 +311,13 @@ try {
         try {
           const mime = body.mime || "text/markdown";
           const bytes = await editor.saveDocument(mime);
+          const output = mime === "text/html"
+            ? wrapHtmlDocument(documentTitle, new TextDecoder().decode(bytes))
+            : bytes;
+
           vscode.postMessage({
             requestId: envelope.requestId,
-            body: Array.from(bytes),
+            body: Array.from(output),
           });
         } catch (err) {
           report("error", "Failed to save document", err);
@@ -256,6 +325,16 @@ try {
             requestId: envelope.requestId,
             body: [],
           });
+        }
+        return;
+      }
+
+      case "printPdf": {
+        try {
+          const htmlBytes = await editor.saveDocument("text/html");
+          await printDocument(new TextDecoder().decode(htmlBytes));
+        } catch (err) {
+          report("error", "Failed to print document", err);
         }
         return;
       }
