@@ -13,11 +13,13 @@
   ],
   "repository": "TODO",
   "main": "./dist/index.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "customEditors": [
       {
-        "viewType": "markdownEditor",
+        "viewType": "ededitit.markdownEditor",
         "displayName": "WYSIWYG Editor",
         "selector": [
           {
@@ -28,92 +30,91 @@
           }
         ]
       }
-    ]
-  },
-  "menus": {
-    "commandPalette": [
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "markdownEditor.openBuiltinEditor",
+          "when": "activeCustomEditorId == 'ededitit.markdownEditor'",
+          "group": "navigation@1"
+        }
+      ]
+    },
+    "commands": [
       {
-        "command": "editor.action.startFindAction",
-        "when": "activeCustomEditorId != markdownEditor.markdownEditor"
+        "command": "markdownEditor.openBuiltinEditor",
+        "title": "Open in Text Editor",
+        "icon": "$(markdown)"
+      },
+      {
+        "command": "markdownEditor.find",
+        "title": "Find",
+        "category": "Markdown Editor"
+      },
+      {
+        "command": "markdownEditor.replace",
+        "title": "Replace",
+        "category": "Markdown Editor"
+      },
+      {
+        "command": "markdownEditor.findNext",
+        "title": "Find Next",
+        "category": "Markdown Editor"
+      },
+      {
+        "command": "markdownEditor.findPrev",
+        "title": "Find Previous",
+        "category": "Markdown Editor"
+      },
+      {
+        "command": "markdownEditor.replaceNext",
+        "title": "Replace Next",
+        "category": "Markdown Editor"
+      },
+      {
+        "command": "markdownEditor.replaceAll",
+        "title": "Replace All",
+        "category": "Markdown Editor"
+      },
+      {
+        "command": "markdownEditor.exportPdf",
+        "title": "Export to PDF",
+        "category": "Markdown Editor"
       }
     ],
-    "editor/title/context": [],
-    "editor/context": [
+    "keybindings": [
       {
-        "command": "editor.action.startFindAction",
-        "when": "activeCustomEditorId != markdownEditor.markdownEditor"
+        "command": "markdownEditor.find",
+        "key": "ctrl+f",
+        "mac": "cmd+f",
+        "when": "activeCustomEditorId == 'ededitit.markdownEditor'"
+      },
+      {
+        "command": "markdownEditor.replace",
+        "key": "ctrl+h",
+        "mac": "cmd+alt+f",
+        "when": "activeCustomEditorId == 'ededitit.markdownEditor'"
+      },
+      {
+        "command": "markdownEditor.findNext",
+        "key": "f3",
+        "mac": "cmd+g",
+        "when": "activeCustomEditorId == 'ededitit.markdownEditor'"
+      },
+      {
+        "command": "markdownEditor.findPrev",
+        "key": "shift+f3",
+        "mac": "cmd+shift+g",
+        "when": "activeCustomEditorId == 'ededitit.markdownEditor'"
+      },
+      {
+        "command": "markdownEditor.exportPdf",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "activeCustomEditorId == 'ededitit.markdownEditor'"
       }
     ]
   },
-  "commands": [
-    {
-      "command": "markdownEditor.find",
-      "title": "Find",
-      "category": "Markdown Editor"
-    },
-    {
-      "command": "markdownEditor.replace",
-      "title": "Replace",
-      "category": "Markdown Editor"
-    },
-    {
-      "command": "markdownEditor.findNext",
-      "title": "Find Next",
-      "category": "Markdown Editor"
-    },
-    {
-      "command": "markdownEditor.findPrev",
-      "title": "Find Previous",
-      "category": "Markdown Editor"
-    },
-    {
-      "command": "markdownEditor.replaceNext",
-      "title": "Replace Next",
-      "category": "Markdown Editor"
-    },
-    {
-      "command": "markdownEditor.replaceAll",
-      "title": "Replace All",
-      "category": "Markdown Editor"
-    },
-    {
-      "command": "markdownEditor.exportPdf",
-      "title": "Export to PDF",
-      "category": "Markdown Editor"
-    }
-  ],
-  "keybindings": [
-    {
-      "command": "markdownEditor.find",
-      "key": "ctrl+f",
-      "mac": "cmd+f",
-      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
-    },
-    {
-      "command": "markdownEditor.replace",
-      "key": "ctrl+h",
-      "mac": "cmd+alt+f",
-      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
-    },
-    {
-      "command": "markdownEditor.findNext",
-      "key": "f3",
-      "mac": "cmd+g",
-      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
-    },
-    {
-      "command": "markdownEditor.findPrev",
-      "key": "shift+f3",
-      "mac": "cmd+shift+g",
-      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
-    },
-    {
-      "command": "markdownEditor.exportPdf",
-      "key": "ctrl+shift+e",
-      "mac": "cmd+shift+e",
-      "when": "activeCustomEditorId == markdownEditor.markdownEditor"
-    }
-  ],
   "scripts": {
     "package": "vsce package",
     "vscode:prepublish": "npm run compile",
