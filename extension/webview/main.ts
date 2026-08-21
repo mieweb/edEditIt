@@ -2,8 +2,9 @@ import { CoreEditor } from "@kerebron/editor";
 import { AdvancedEditorKit } from "@kerebron/editor-kits/AdvancedEditorKit";
 import { createAssetLoad } from "@kerebron/wasm/web";
 import { SearchQuery } from "@kerebron/editor/search";
+import { debounce } from '@kerebron/editor/utilities';
 
-import "@kerebron/editor/assets/index.css";
+import "@kerebron/editor/assets/index-light.css";
 import "@kerebron/editor-kits/assets/AdvancedEditorKit.css";
 import "./customEditor.css";
 
@@ -82,6 +83,7 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 let baseDir = "";
+let assetDir = "";
 let documentTitle = "";
 
 function getExt(fileName: string) {
@@ -155,6 +157,8 @@ async function printDocument(bodyHtml: string): Promise<void> {
 
 let currentSearch: SearchQuery | null = null;
 
+let modifyMutex = 0;
+
 try {
   const WASM_BASE_URL =
     document.head.querySelector("[name=WASM_BASE_URL]")?.getAttribute(
@@ -169,8 +173,7 @@ try {
     ],
   });
 
-  editor
-    .chain()
+  editor.run
     .setFromOdtUrlRewriter(async (href, ctx) => {
       if (ctx.type === "IMG") {
         const file = ctx.filesMap[href];
@@ -183,7 +186,9 @@ try {
         }
       }
       return href;
-    })
+    });
+
+  editor.run
     .setFromMarkdownUrlRewriter(async (href, ctx) => {
       if (ctx.type === "IMG") {
         if (/^(https?:|data:|vscode-|\/)/.test(href)) {
@@ -192,14 +197,53 @@ try {
         return new URL(href, baseDir + "/").href;
       }
       return href;
-    })
-    .setToMarkdownUrlRewriter(async (href, ctx) => {
+    });
+
+  const rewriteCtx = {
+    isVsCode: false,
+    isSave: false,
+    images: new Map<string, Uint8Array>()
+  };
+  editor.run
+    .setToMarkdownUrlRewriter(async (href: string, ctx) => {
       if (ctx.type === "IMG") {
-        // TODO
+        if (!(rewriteCtx.isSave || rewriteCtx.isVsCode)) {
+          return href;
+        }
+
+        if (href.startsWith('https://file+.vscode-resource.vscode-cdn.net') && href.startsWith(baseDir)) {
+          href = href.substring(baseDir.length)
+          if (href.startsWith('/')) {
+            href = '.' + href;
+          }
+          return href;
+        } else
+        if (/^(data:)/.test(href)) {
+          const base64 = href.split(',')[1];
+          const binary = atob(base64);
+          const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+
+          const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+          const hash = [...new Uint8Array(hashBuffer)]
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+
+          const match = href.match(/^data:image\/([^;,]+)/i);
+          const extension = match?.[1] === 'jpeg' ? 'jpg' : match?.[1] || 'bin';
+
+          const filename = `${hash}.${extension}`;
+
+          if (rewriteCtx.isSave) {
+            rewriteCtx.images.set(filename, bytes);
+          }
+
+          const destFile = assetDir + filename;
+
+          return destFile;
+        }
       }
       return href;
-    })
-    .run();
+    });
 
   window.addEventListener("message", async (event) => {
     const envelope = event.data;
@@ -261,8 +305,6 @@ try {
       }
 
       case "init": {
-        // editor.setDocument('application/vnd.oasis.opendocument.text', body.value);
-
         if (body.pasteRules) {
           const yaml = editor.ci.resolve("yaml")! as any;
           const pasteRules = yaml.toJSON(yaml.parse(body.pasteRules));
@@ -273,7 +315,8 @@ try {
             .run();
         }
 
-        baseDir = body.baseDir || "";
+        baseDir = (body.baseDir || "").replaceAll('%2B', '+');
+        assetDir = body.assetDir || "";
         const fileLocation = body.uri?.path ?? "";
         documentTitle = fileLocation
           ? fileLocation.substring(fileLocation.lastIndexOf("/") + 1)
@@ -298,11 +341,10 @@ try {
           }
         } catch (err) {
           console.error(
-            "Failed handle message",
-            err.message,
-            Object.keys(err),
+            "Failed editor init: ",
+            err,
           );
-          report("error", "Failed handle message" + err.message, err);
+          report("error", "Failed editor init: " + err.message, err);
         }
         return;
       }
@@ -310,14 +352,25 @@ try {
       case "getFileData": {
         try {
           const mime = body.mime || "text/markdown";
+          const isSave = !!body.isSave;
+          
+          rewriteCtx.isSave = isSave;
+          rewriteCtx.images = new Map<string, Uint8Array>();
+
           const bytes = await editor.saveDocument(mime);
+
+          rewriteCtx.isSave = false;
+
           const output = mime === "text/html"
             ? wrapHtmlDocument(documentTitle, new TextDecoder().decode(bytes))
             : bytes;
 
           vscode.postMessage({
             requestId: envelope.requestId,
-            body: Array.from(output),
+            body: {
+               data: Array.from(output),
+               images: Array.from(rewriteCtx.images.entries())
+            },
           });
         } catch (err) {
           report("error", "Failed to save document", err);
@@ -341,15 +394,35 @@ try {
 
       case "update": {
         try {
+          modifyMutex = 1;
           const mime = body.mime || "text/markdown";
-          await editor.loadDocument(mime, body.value);
+          await editor.patchDocument(mime, body.value);
         } catch (err) {
           report("error", "Failed to update document" + err.message, err);
+        } finally {
+          modifyMutex = 0;
         }
         return;
       }
     }
   });
+
+  const changeListener = debounce(async () => {
+    if (modifyMutex) {
+      return;
+    }
+
+    rewriteCtx.isVsCode = true;
+    const bytes = await editor.saveDocument("text/markdown");
+    rewriteCtx.isVsCode = false;
+
+    vscode.postMessage({
+      type: "update",
+      body: Array.from(bytes),
+    });
+  }, 500);
+
+  editor.addEventListener('changed', changeListener);
 
   report("info", "CoreEditor created");
 } catch (err) {
@@ -381,3 +454,38 @@ window.addEventListener("message", (event) => {
   if (msg.$to !== "extension") return;
   vscode.postMessage(msg);
 });
+
+async function sizeSvgImages() {
+    const images = document.querySelectorAll('img[src$=".svg"]');
+
+    for (const img of images) {
+        if (img.offsetWidth !== 0) continue;
+
+        try {
+            const response = await fetch(img.src);
+            const svgText = await response.text();
+
+            const svg = new DOMParser()
+                .parseFromString(svgText, 'image/svg+xml')
+                .documentElement;
+
+            const viewBox = svg.getAttribute('viewBox');
+            if (!viewBox) continue;
+
+            const [, , width] = viewBox
+                .trim()
+                .split(/\s+/)
+                .map(Number);
+
+            if (!width) continue;
+
+            img.style.width = `${width}px`;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+        } catch (error) {
+            console.error('Could not process SVG:', img.src, error);
+        }
+    }
+}
+
+setInterval(sizeSvgImages, 1000);
