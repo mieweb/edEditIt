@@ -128,9 +128,9 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@kerebron/editor": "0.8.9",
-    "@kerebron/editor-kits": "0.8.9",
-    "@kerebron/wasm": "0.8.9"
+    "@kerebron/editor": "0.8.12",
+    "@kerebron/editor-kits": "0.8.12",
+    "@kerebron/wasm": "0.8.12"
   },
   "devDependencies": {
     "@types/node": "20.x",
@@ -138,9 +138,9 @@
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/codicons": "^0.0.45",
-    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-cli": "0.0.15",
     "@vscode/test-electron": "^2.5.2",
-    "@vscode/vsce": "3.9.1",
+    "@vscode/vsce": "3.9.2",
     "concurrently": "^10.0.3",
     "esbuild": "^0.28.1",
     "eslint": "^9.25.1",
