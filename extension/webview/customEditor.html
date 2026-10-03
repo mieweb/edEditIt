@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="
+      default-src 'none';
+      style-src __CSP_SOURCE__ 'unsafe-inline';
+      font-src __CSP_SOURCE__;
+      img-src __CSP_SOURCE__ data:;
+      frame-src http://127.0.0.1:* http://localhost:*;
+      script-src 'nonce-__NONCE__' 'wasm-unsafe-eval';
+      connect-src __CSP_SOURCE__ wasm: http://127.0.0.1:* http://localhost:*;
+    "
+        />
+        <title>MarkdownEditor</title>
+        <link rel="stylesheet" href="__WEBVIEW_STYLE_URI__" />
+        <meta name="WASM_BASE_URL" content="__WASM_BASE_URL__" />
+    </head>
+    <body>
+        <div id="editor"></div>
+        <script
+            type="module"
+            nonce="__NONCE__"
+            src="__WEBVIEW_SCRIPT_URI__"
+        ></script>
+    </body>
+</html>
