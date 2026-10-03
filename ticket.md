@@ -18,8 +18,11 @@ Runnable samples (`.mdyt` template / `.mdy` flattened pairs):
   `<id>` exists in the front-matter index (spec §3–4).
 - Spec §4 sketches the editing semantics: a `fieldLink` mark (non-inclusive,
   id-only), chip-style rendering, data-first editing, unlink-on-direct-edit.
-- templit already renders `.mdyt` → `.mdy` with implicit field links
-  (`{{weight}}` → `[198 lb](#weight)`), so documents arrive pre-linked.
+- templit already renders template bodies with implicit field links
+  (`{{weight}}` → `[198 lb](#weight)`). Its current API returns the rendered
+  body and HTML; exporting a complete `.mdy` with merged YAML front matter
+  and template provenance remains planned. This ticket consumes documents
+  that already contain front matter and field links.
 
 ## Milestone 1 — Protected field-link spans (read layer)
 
@@ -96,4 +99,5 @@ sheet collapsed/filtered to the field that matters, with just enough context.
 - MDY spec: https://github.com/mieweb/templit/blob/main/doc/mdy-specification.md
   (§4 editing semantics, §5 resolvers, §9 conformance)
 - Samples: https://github.com/mieweb/templit/tree/main/samples
-- eSheet field model: `packages/core/src/lib/types.ts` (`FieldDefinition`)
+- eSheet field model: [upstream `types.ts`](https://github.com/mieweb/eSheet/blob/main/packages/core/src/lib/types.ts)
+  (`FieldDefinition`)
