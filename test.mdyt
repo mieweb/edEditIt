@@ -1,0 +1,55 @@
+---
+# TEMPLATE (.mdyt) — eSheet resolver. Front matter carries two legal eSheet
+# objects (https://esheet.mieweb.org/docs/schema-format):
+#   form:     FormDefinition (pages → fields)
+#   response: FormResponse   (field id → { answer } or { selected })
+# Data-bearing: the response doubles as a preview; applying a real
+# FormResponse overrides it.
+mdy:
+  kind: template
+  engine: handlebars
+  schema: esheet
+  name: Vitals intake
+  version: 1.0.0
+form:
+  id: vitals-intake
+  title: Vitals Intake
+  pages:
+    - id: page_1
+      fields:
+        - id: patient_name
+          fieldType: text
+          question: Full Name
+          required: true
+        - id: body_height
+          fieldType: text
+          question: Height
+          inputType: number
+          unit: cm
+        - id: body_weight
+          fieldType: text
+          question: Weight
+          inputType: number
+          unit: kg
+        - id: smoker
+          fieldType: boolean
+          question: Tobacco use?
+response:
+  patient_name:
+    answer: Jordan Rivera
+  body_height:
+    answer: "180"
+  body_weight:
+    answer: "89.8"
+  smoker:
+    selected: { id: "no", value: "No" }
+---
+# Vitals Intake
+
+**Full Name:** {{response.patient_name}}
+
+## Vitals
+
+- Height: {{response.body_height}} cm
+- Weight: {{response.body_weight}} kg
+- Tobacco use? {{response.smoker}}

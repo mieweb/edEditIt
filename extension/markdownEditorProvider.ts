@@ -93,8 +93,8 @@ export class MarkdownEditorProvider
     if (filename === 'index.md') {
       assetDir = vscode.Uri.joinPath(document.uri, '..');
     } else
-    if (filename.endsWith('.md')) {
-      assetDir = vscode.Uri.joinPath(document.uri, '..', filename.replace('.md', '.assets'));
+    if (/\.(?:md|ededit)$/i.test(filename)) {
+      assetDir = vscode.Uri.joinPath(document.uri, '..', filename.replace(/\.(?:md|ededit)$/i, '.assets'));
     }
 
     if (assetDir && response.images.size > 0) {
@@ -437,8 +437,8 @@ export class MarkdownEditorProvider
       let assetDir = '';
       if (filename === 'index.md') {
         assetDir = './';
-      } else if (filename.endsWith('.md')) {
-        assetDir = './' + filename.replace(/.md$/, '.assets') + '/';
+      } else if (/\.(?:md|ededit)$/i.test(filename)) {
+        assetDir = './' + filename.replace(/\.(?:md|ededit)$/i, '.assets') + '/';
       }
 
       if (e.type === "ready") {

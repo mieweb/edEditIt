@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────────
-# Bootstrap edEditIt: initialize/update vendored submodules and Git LFS assets.
+# Bootstrap edEditIt: initialize pinned integration submodules and Git LFS assets.
 #
 # Usage:
 #   ./scripts/bootstrap.sh
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
 
-echo "📦 Initializing submodules under vendor/ ..."
+echo "📦 Initializing pinned submodules under vendor/ ..."
 git submodule update --init --recursive
 
 if command -v git-lfs >/dev/null 2>&1; then
