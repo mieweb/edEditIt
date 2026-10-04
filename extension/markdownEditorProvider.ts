@@ -7,7 +7,7 @@ import { MarkdownDocument } from "./MarkdownDocument.js";
 
 export class MarkdownEditorProvider
   implements vscode.CustomEditorProvider<MarkdownDocument> {
-  public static readonly viewType = "markdownEditor";
+  public static readonly viewType = "ededitit.markdownEditor";
 
   private readonly webviews = new WebviewCollection();
   private activePanel: vscode.WebviewPanel | undefined;
@@ -21,41 +21,38 @@ export class MarkdownEditorProvider
 
   public static register(
     context: vscode.ExtensionContext,
-  ): vscode.Disposable {
+  ): void {
     const provider = new MarkdownEditorProvider(context);
-    const providerRegistration = vscode.window.registerCustomEditorProvider(
-      MarkdownEditorProvider.viewType,
-      provider,
-    );
 
-    const subs = context.subscriptions;
-    subs.push(providerRegistration);
-
-    subs.push(vscode.window.registerCustomEditorProvider(
+    context.subscriptions.push(vscode.window.registerCustomEditorProvider(
       MarkdownEditorProvider.viewType,
       provider,
     ));
 
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.find", () => provider.runFind(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.replace", () => provider.runReplace(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.findNext", () => provider.runFindNext(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.findPrev", () => provider.runFindPrev(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.replaceNext", () => provider.runReplaceNext(),
     ));
-    subs.push(vscode.commands.registerCommand(
+    context.subscriptions.push(vscode.commands.registerCommand(
       "markdownEditor.replaceAll", () => provider.runReplaceAll(),
     ));
-
-    return providerRegistration;
+    context.subscriptions.push(vscode.commands.registerCommand(
+      "markdownEditor.exportPdf", () => provider.exportToPdf(),
+    ));
+    context.subscriptions.push(vscode.commands.registerCommand(
+      "markdownEditor.openBuiltinEditor", (uri: vscode.Uri) => provider.openBuiltinEditor(uri),
+    ));
   }
 
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -85,11 +82,32 @@ export class MarkdownEditorProvider
     }
     const mime = this.mimeFromUri(document.uri);
     this.assertExportable(mime);
-    const data = await document.getFileData(mime);
+    const response = await document.getFileData({ mime, isSave: true });
     if (cancellation.isCancellationRequested) {
       return;
     }
-    await vscode.workspace.fs.writeFile(document.uri, data);
+
+    let assetDir;
+    
+    const filename = path.basename(document.uri.fsPath);
+    if (filename === 'index.md') {
+      assetDir = vscode.Uri.joinPath(document.uri, '..');
+    } else
+    if (filename.endsWith('.md')) {
+      assetDir = vscode.Uri.joinPath(document.uri, '..', filename.replace('.md', '.assets'));
+    }
+
+    if (assetDir && response.images.size > 0) {
+      await vscode.workspace.fs.createDirectory(assetDir);
+      for (const [ fileName, bytes ] of response.images.entries()) {
+        const destUri = vscode.Uri.joinPath(assetDir, fileName);
+        this.debug('Write image: ' + destUri.toString());
+        await vscode.workspace.fs.writeFile(destUri, bytes);
+      }
+    }
+
+    await vscode.workspace.fs.writeFile(document.uri, response.data);
+
     this._lastSaveTime = Date.now();
     document.markClean();
   }
@@ -144,13 +162,13 @@ export class MarkdownEditorProvider
 
     const mime = this.mimeFromUri(destination);
     this.assertExportable(mime);
-    const data = await document.getFileData(mime);
+    const response = await document.getFileData({ mime, isSave: true });
 
     if (cancellation.isCancellationRequested) {
       return;
     }
 
-    await vscode.workspace.fs.writeFile(destination, data);
+    await vscode.workspace.fs.writeFile(destination, response.data);
     document.markClean();
   }
 
@@ -201,10 +219,10 @@ export class MarkdownEditorProvider
         delete: async () => {/* noop */},
       };
     }
-    const data = await document.getFileData(mime);
+    const response = await document.getFileData({ mime, isSave: true });
 
     if (!cancellation.isCancellationRequested) {
-      await vscode.workspace.fs.writeFile(context.destination, data);
+      await vscode.workspace.fs.writeFile(context.destination, response.data);
     }
 
     return {
@@ -224,14 +242,13 @@ export class MarkdownEditorProvider
     openContext: vscode.CustomDocumentOpenContext,
     token: vscode.CancellationToken,
   ): Promise<MarkdownDocument> {
-    this.output.appendLine(`openCustomDocument ` + uri);
-    this.output.show(true); // optional
+    this.debug(`openCustomDocument ` + uri);
 
     const document: MarkdownDocument = await MarkdownDocument.create(
       uri,
       openContext.backupId,
       {
-        getFileData: async (mime?: string) => {
+        getFileData: async (payload: { mime?: string, isSave?: boolean }) => {
           const webviewsForDocument = Array.from(
             this.webviews.get(document.uri),
           );
@@ -240,15 +257,24 @@ export class MarkdownEditorProvider
           }
           const panel = webviewsForDocument[0];
 
-          this.output.appendLine(`getFileData ` + uri);
-
           const response = await this.postMessageWithResponse<
-            number[]
+            { data: Uint8Array, images: Array<[string, Uint8Array]> }
           >(panel, "getFileData", {
             $to: "iframe",
-            mime: mime ?? "text/markdown",
+            mime: payload?.mime ?? "text/markdown",
+            isSave: !!payload?.isSave,
           });
-          return new Uint8Array(response);
+
+          response.data = new Uint8Array(response.data);
+
+          const images = new Map<string, Uint8Array>(
+            response.images.map(([name, bytes]: [string, Uint8Array]) => [
+              name,
+              new Uint8Array(bytes),
+            ])
+          );
+
+          return { data: response.data, images };
         },
       },
     );
@@ -263,67 +289,40 @@ export class MarkdownEditorProvider
       });
     }));
 
-    listeners.push(document.onDidChangeContent((e) => {
-      // Update all webviews when the document changes
-      for (const webviewPanel of this.webviews.get(document.uri)) {
-        this.postMessage(webviewPanel, "update", {
-          // edits: e.edits,
-          content: e.content,
-        }, "onDidChangeContent");
+    listeners.push(document.onDidChangeContent(async (e) => { // Kerebron => vscode
+      try {
+        document.reloadPending = true;
+        // this.debug("onDidChangeContent");
+        const markdown: string = new TextDecoder().decode( new Uint8Array(e.content));
+        
+        const doc = await vscode.workspace.openTextDocument(uri);
+
+        const edit = new vscode.WorkspaceEdit();
+
+        const lastLine = doc.lineCount - 1;
+        const lastChar = doc.lineAt(lastLine).text.length;
+
+        edit.replace(
+          uri,
+          new vscode.Range(
+            new vscode.Position(0, 0),
+            new vscode.Position(lastLine, lastChar)
+          ),
+          markdown
+        );
+
+        await vscode.workspace.applyEdit(edit);
+      } catch (e) {
+        this.debug(e?.message || e);
+      } finally {
+        document.reloadPending = false;
       }
     }));
 
     if (document.uri.scheme === "file") {
-      const watcher = vscode.workspace.createFileSystemWatcher(
-        document.uri.fsPath,
-      );
-      listeners.push(watcher);
-
-      let reloadPending = false;
-      listeners.push(watcher.onDidChange(async () => {
-        if (reloadPending) return;
-        // Ignore self-save writes
-        if (Date.now() - this._lastSaveTime < 500) return;
-
-        reloadPending = true;
-        // Small debounce — some editors write in multiple passes
-        await new Promise((r) => setTimeout(r, 100));
-
-        if (document.isDirty) {
-          const choice = await vscode.window.showWarningMessage(
-            "File changed on disk. Reload and discard local edits?",
-            "Reload",
-            "Keep",
-          );
-          if (choice !== "Reload") {
-            reloadPending = false;
-            return;
-          }
-        }
-
-        try {
-          const fileData = await vscode.workspace.fs.readFile(document.uri);
-          for (const webviewPanel of this.webviews.get(document.uri)) {
-            this.postMessage(webviewPanel, "init", {
-              $to: "iframe",
-              value: fileData,
-              editable: true,
-              baseDir: webviewPanel.webview.asWebviewUri(
-                vscode.Uri.joinPath(document.uri, ".."),
-              ).toString(),
-            }, "onDidChange");
-          }
-          document.markClean();
-        } catch (err) {
-          vscode.window.showErrorMessage("Failed to reload: " + err);
-        } finally {
-          reloadPending = false;
-        }
-      }));
-
       let textReloadPending = false;
       let lastTextContent = "";
-      listeners.push(vscode.workspace.onDidChangeTextDocument((e) => {
+      listeners.push(vscode.workspace.onDidChangeTextDocument((e) => { // vscode editor => kerebron
         if (e.document.uri.toString() !== document.uri.toString()) return;
         if (e.document.uri.scheme !== "file") return;
 
@@ -341,7 +340,7 @@ export class MarkdownEditorProvider
 
             // Read latest lastTextContent (may have changed during debounce)
             const bytes = new TextEncoder().encode(lastTextContent);
-            this.output.appendLine(
+            this.debug(
               `syncing text→custom, ${bytes.length} bytes`,
             );
             for (const webviewPanel of panels) {
@@ -427,12 +426,20 @@ export class MarkdownEditorProvider
     );
 
     webviewPanel.webview.onDidReceiveMessage(async (e) => {
-      this.output.appendLine(`onDidReceiveMessage ` + e.type);
-      this.output.show(true); // optional
+      this.debug(`onDidReceiveMessage ` + e.type);
 
       const baseDir = webviewPanel.webview.asWebviewUri(
         vscode.Uri.joinPath(document.uri, ".."),
       ).toString();
+
+      const filename = path.basename(document.uri.fsPath);
+
+      let assetDir = '';
+      if (filename === 'index.md') {
+        assetDir = './';
+      } else if (filename.endsWith('.md')) {
+        assetDir = './' + filename.replace(/.md$/, '.assets') + '/';
+      }
 
       if (e.type === "ready") {
         const pasteRules = await this.loadPasteRules();
@@ -442,6 +449,7 @@ export class MarkdownEditorProvider
             untitled: true,
             editable: true,
             baseDir,
+            assetDir,
             pasteRules,
           }, "onDidReceiveMessage " + document.uri);
         } else {
@@ -452,9 +460,10 @@ export class MarkdownEditorProvider
           this.postMessage(webviewPanel, "init", {
             uri: document.uri,
             $to: "iframe",
-            value: document.documentData,
+            value: document.documentData.data,
             editable,
             baseDir,
+            assetDir,
             pasteRules,
           }, "onDidReceiveMessage2 " + document.uri);
         }
@@ -466,9 +475,21 @@ export class MarkdownEditorProvider
   private _lastSaveTime = 0;
 
   private readonly _callbacks = new Map<number, (response: any) => void>();
-  private readonly output = vscode.window.createOutputChannel(
+  private static readonly output = vscode.window.createOutputChannel(
     "Markdown Webview",
   );
+
+  /** Reveal the output channel only when running under the extension debugger. */
+  private showOutput(): void {
+    if (this.context.extensionMode === vscode.ExtensionMode.Development) {
+      MarkdownEditorProvider.output.show(true);
+    }
+  }
+
+  private debug(str: string): void {
+    MarkdownEditorProvider.output.appendLine(str);
+    this.showOutput();
+  }
 
   private postMessageWithResponse<R = unknown>(
     panel: vscode.WebviewPanel,
@@ -480,8 +501,7 @@ export class MarkdownEditorProvider
       this._callbacks.set(requestId, resolve)
     );
 
-    this.output.appendLine(`postMessageWithResponse ` + type);
-    this.output.show(true); // optional
+    this.debug(`postMessageWithResponse ` + type);
 
     panel.webview.postMessage({ type, requestId, body });
     return p;
@@ -493,8 +513,7 @@ export class MarkdownEditorProvider
     body: any,
     debug: string,
   ): void {
-    this.output.appendLine(`postMessage ` + type + " " + debug);
-    this.output.show(true); // optional
+    this.debug(`postMessage ` + type + " " + debug);
 
     panel.webview.postMessage({ type, body });
   }
@@ -514,11 +533,17 @@ export class MarkdownEditorProvider
       return;
     }
 
+    if (message.type === "update") {
+      const content = message.body;
+      document._onDidChangeDocument.fire({
+        content
+      });
+    }
+
     if (message.type === "webviewConsole") {
       const level = message.body?.level ?? "log";
       const text = message.body?.text ?? "";
-      this.output.appendLine(`[${level}] ${text}`);
-      this.output.show(true); // optional
+      this.debug(`[${level}] ${text}`);
       return;
     }
 
@@ -534,30 +559,10 @@ export class MarkdownEditorProvider
       } else if (level === "warn") {
         vscode.window.showWarningMessage(text);
       } else {
-        console.log(text);
+        this.debug(text);
       }
       return;
     }
-  }
-
-  private addNewDoc(document: vscode.TextDocument) {
-    const json = {};
-
-    return this.updateTextDocument(document, json);
-  }
-
-  private updateTextDocument(document: vscode.TextDocument, json: any) {
-    const edit = new vscode.WorkspaceEdit();
-
-    // Just replace the entire document every time for this example extension.
-    // A more complete extension should compute minimal edits instead.
-    edit.replace(
-      document.uri,
-      new vscode.Range(0, 0, document.lineCount, 0),
-      JSON.stringify(json, null, 2),
-    );
-
-    return vscode.workspace.applyEdit(edit);
   }
 
   private getNonce(): string {
@@ -698,6 +703,26 @@ export class MarkdownEditorProvider
     const panel = this.getActivePanel();
     if (!panel || !this.lastSearch) return;
     this.postMessage(panel, "replaceAll", { $to: "iframe" }, "replaceAll");
+  }
+
+  private async exportToPdf(): Promise<void> {
+    const panel = this.getActivePanel();
+    if (!panel) return;
+    this.postMessage(panel, "printPdf", { $to: "iframe" }, "printPdf");
+  }
+
+  private async openBuiltinEditor(uri: vscode.Uri): Promise<void> {
+    if (!uri) {
+      vscode.window.showErrorMessage('No document URI');
+      return;
+    }
+    
+    await vscode.commands.executeCommand(
+      'vscode.openWith',
+      uri,
+      'default',
+      vscode.ViewColumn.Beside
+    );
   }
 
 }

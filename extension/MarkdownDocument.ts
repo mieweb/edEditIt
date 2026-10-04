@@ -2,21 +2,28 @@ import * as vscode from "vscode";
 
 import { Disposable } from "./dispose.js";
 
+type RetVal = {
+   data: Uint8Array;
+   images: Map<string, Uint8Array>;
+};
+
 export interface MarkdownDocumentDelegate {
-  getFileData(mime?: string): Promise<Uint8Array>;
+  getFileData(payload: { mime?: string, isSave?: boolean }): Promise<RetVal>;
 }
 
 export class MarkdownDocument extends Disposable
   implements vscode.CustomDocument {
   private readonly _uri: vscode.Uri;
 
-  private _documentData: Uint8Array;
+  private _documentData: RetVal;
 
   private readonly _delegate: MarkdownDocumentDelegate;
 
+  public reloadPending = false;
+
   private constructor(
     uri: vscode.Uri,
-    initialContent: Uint8Array,
+    initialContent: RetVal,
     delegate: MarkdownDocumentDelegate,
   ) {
     super();
@@ -25,8 +32,8 @@ export class MarkdownDocument extends Disposable
     this._documentData = initialContent;
   }
 
-  public async getFileData(mime?: string): Promise<Uint8Array> {
-    const data = await this._delegate.getFileData(mime);
+  public async getFileData(payload: { mime?: string, isSave?: boolean }): Promise<RetVal> {
+    const data = await this._delegate.getFileData(payload);
     this._documentData = data;
     return data;
   }
@@ -40,7 +47,7 @@ export class MarkdownDocument extends Disposable
       ? vscode.Uri.parse(backupId)
       : uri;
     const fileData = await MarkdownDocument.readFile(dataFile);
-    return new MarkdownDocument(uri, fileData, delegate);
+    return new MarkdownDocument(uri, { data: fileData, images: new Map() }, delegate);
   }
 
   private static async readFile(uri: vscode.Uri): Promise<Uint8Array> {
@@ -54,7 +61,7 @@ export class MarkdownDocument extends Disposable
     return this._uri;
   }
 
-  public get documentData(): Uint8Array {
+  public get documentData(): RetVal {
     return this._documentData;
   }
 
@@ -66,7 +73,7 @@ export class MarkdownDocument extends Disposable
    */
   public readonly onDidDispose = this._onDidDispose.event;
 
-  private readonly _onDidChangeDocument = this._register(
+  public readonly _onDidChangeDocument = this._register(
     new vscode.EventEmitter<{
       readonly content?: Uint8Array;
     }>(),
