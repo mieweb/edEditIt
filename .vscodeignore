@@ -1,0 +1,2 @@
+# Temporary integration repositories are not extension runtime files.
+vendor/**

@@ -1,8 +1,10 @@
 # edEditIt — Plan & Progress
 
-edEditIt is a standalone, Deno-first repository that consumes `@kerebron/*` packages
-and ships a VS Code extension whose custom editor hosts Kerebron in a webview. The six
-sibling repos are vendored as git submodules under `vendor/` for DRY reuse.
+edEditIt is a VS Code extension whose custom editor hosts Kerebron in a webview.
+It consumes published `@kerebron/*` npm packages and builds with npm, esbuild, and
+TypeScript. Seven related repositories are temporarily retained as git submodules
+under `vendor/` while complete MDY and MDYT support is developed. See
+[vendor/README.md](vendor/README.md) for their purpose and removal criteria.
 
 ## Vendored submodules (`vendor/`)
 
@@ -18,7 +20,7 @@ sibling repos are vendored as git submodules under `vendor/` for DRY reuse.
 
 ## Phases
 
-### Phase 0 — Submodules & scaffold
+### Phase 0 — Original submodules & scaffold (historical)
 - [x] Add all 7 repos as submodules under `vendor/`
 - [x] `scripts/bootstrap.sh` (submodule init + LFS pull)
 - [x] `deno.json` workspace

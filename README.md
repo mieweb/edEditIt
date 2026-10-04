@@ -1,4 +1,7 @@
 
+Temporary integration repositories live in [`vendor/`](vendor/README.md) until
+complete MDY and MDYT support is available.
+
 Related repositories
 https://www.youtube.com/watch?v=zM0aTYzbxHk
 
