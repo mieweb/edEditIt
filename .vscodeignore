@@ -1,2 +1,2 @@
-# templit supplies reference documentation and samples, not extension runtime code.
+# Temporary integration repositories are not extension runtime files.
 vendor/**
