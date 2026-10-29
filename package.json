@@ -11,7 +11,10 @@
   "categories": [
     "Other"
   ],
-  "repository": "TODO",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mieweb/edEditIt.git"
+  },
   "main": "./dist/index.js",
   "activationEvents": [
     "onStartupFinished"
@@ -136,7 +139,9 @@
     "vscode:prepublish": "npm run compile",
     "build:webview": "esbuild extension/webview/main.ts --bundle --format=esm --platform=browser --outdir=dist/webview --entry-names=main --asset-names=assets/[name] --loader:.ttf=file --external:fs/promises --external:module --external:fs --external:path --external:url",
     "watch:webview": "esbuild extension/webview/main.ts --bundle --format=esm --platform=browser --outdir=dist/webview --entry-names=main --asset-names=assets/[name] --loader:.ttf=file --watch --external:fs/promises --external:module --external:fs --external:path --external:url",
-    "compile": "npm run build:webview && tsc --noCheck -p ./tsconfig.json --outDir ./dist",
+    "compile": "npm run build:webview && tsc -p ./tsconfig.json --outDir ./dist",
+    "check": "tsc --noEmit -p ./tsconfig.json",
+    "test:unit": "npm run compile && node --test test/*.test.cjs",
     "watch:ts": "tsc -watch --noCheck -p ./tsconfig.json --outDir ./dist",
     "watch": "concurrently -k \"npm:watch:ts\" \"npm:watch:webview\"",
     "pretest": "npm run compile && npm run lint",
