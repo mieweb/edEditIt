@@ -2,7 +2,6 @@ import { CoreEditor } from "@kerebron/editor";
 import { AdvancedEditorKit } from "@kerebron/editor-kits/AdvancedEditorKit";
 import { createAssetLoad } from "@kerebron/wasm/web";
 import { SearchQuery } from "@kerebron/editor/search";
-import { debounce } from '@kerebron/editor/utilities';
 
 import "@kerebron/editor/assets/index-light.css";
 import "@kerebron/editor-kits/assets/AdvancedEditorKit.css";
@@ -159,6 +158,36 @@ let currentSearch: SearchQuery | null = null;
 
 let modifyMutex = 0;
 
+// VS Code's webview transport serializes messages as JSON. ProseMirror's
+// document attributes include frontmatter Maps, which JSON would discard.
+function takeSnapshot(editor: CoreEditor): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(editor.getJSON(), (_key, value) => {
+    if (value instanceof Map) {
+      return {
+        $ededitMap: Array.from(value.entries()),
+        origMap: (value as any).origMap,
+        origString: (value as any).origString,
+      };
+    }
+    return value;
+  }));
+}
+
+function restoreSnapshot(snapshot: Record<string, unknown>) {
+  return JSON.parse(JSON.stringify(snapshot), (_key, value) => {
+    if (value && typeof value === "object" && Array.isArray(value.$ededitMap)) {
+      const map = new Map(value.$ededitMap) as Map<unknown, unknown> & {
+        origMap?: Map<unknown, unknown>;
+        origString?: string;
+      };
+      if (value.origMap !== undefined) map.origMap = value.origMap;
+      if (value.origString !== undefined) map.origString = value.origString;
+      return map;
+    }
+    return value;
+  });
+}
+
 try {
   const WASM_BASE_URL =
     document.head.querySelector("[name=WASM_BASE_URL]")?.getAttribute(
@@ -172,6 +201,52 @@ try {
       new AdvancedEditorKit(),
     ],
   });
+
+  let previousSnapshot = takeSnapshot(editor);
+  let exportQueue = Promise.resolve();
+
+  const applySnapshot = (snapshot: Record<string, unknown>) => {
+    const oldState = editor.state;
+    editor.setDocument(restoreSnapshot(snapshot));
+    // Match loadDocument's cloned-state transaction so URL rewriters
+    // and paste rules survive rebuilding the editor state.
+    editor.dispatchTransaction(editor.state.tr.setMeta("cloned", oldState));
+    if (currentSearch) editor.chain().search(currentSearch).run();
+    previousSnapshot = takeSnapshot(editor);
+  };
+
+  // Both the toolbar and keyboard use the native custom document history.
+  // Running a second ProseMirror history would leave Desktop's dirty state
+  // and undo stack out of sync with the visible document.
+  editor.mergeCommandFactories({
+    undo: () => (_state, dispatch) => {
+      if (dispatch) vscode.postMessage({ type: "undo" });
+      return true;
+    },
+    redo: () => (_state, dispatch) => {
+      if (dispatch) vscode.postMessage({ type: "redo" });
+      return true;
+    },
+  }, "desktopHistory");
+
+  window.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.altKey || !(event.metaKey || event.ctrlKey)) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement) ||
+      target.closest("input, textarea, select") || !target.closest(".kb-editor")) return;
+
+    const key = event.key.toLowerCase();
+    const undo = key === "z" && !event.shiftKey;
+    const redo = (key === "z" && event.shiftKey) ||
+      (key === "y" && event.ctrlKey && !event.shiftKey);
+    if (!undo && !redo) return;
+
+    // Stop the webview's built-in forwarding as well as the local keymap,
+    // otherwise one key press can execute both histories.
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    vscode.postMessage({ type: undo ? "undo" : "redo" });
+  }, { capture: true });
 
   editor.run
     .setFromOdtUrlRewriter(async (href, ctx) => {
@@ -200,14 +275,13 @@ try {
     });
 
   const rewriteCtx = {
-    isVsCode: false,
     isSave: false,
     images: new Map<string, Uint8Array>()
   };
   editor.run
     .setToMarkdownUrlRewriter(async (href: string, ctx) => {
       if (ctx.type === "IMG") {
-        if (!(rewriteCtx.isSave || rewriteCtx.isVsCode)) {
+        if (!rewriteCtx.isSave) {
           return href;
         }
 
@@ -264,7 +338,9 @@ try {
           regexp: body.regexp ?? false,
           wholeWord: body.wholeWord ?? false,
         });
-        editor.chain().search(currentSearch).findNext().run();
+        editor.chain().search(currentSearch).run();
+        editor.chain().findNext().run();
+        editor.view.focus();
         return;
       }
 
@@ -276,53 +352,59 @@ try {
           regexp: body.regexp ?? false,
           wholeWord: body.wholeWord ?? false,
         });
+        editor.chain().search(currentSearch).run();
         editor.chain().replaceNext().run();
+        editor.view.focus();
         return;
       }
 
       case "findNext": {
         if (!currentSearch) return;
         editor.chain().findNext().run();
+        editor.view.focus();
         return;
       }
 
       case "findPrev": {
         if (!currentSearch) return;
         editor.chain().findPrev().run();
+        editor.view.focus();
         return;
       }
 
       case "replaceNext": {
         if (!currentSearch) return;
         editor.chain().replaceNext().run();
+        editor.view.focus();
         return;
       }
 
       case "replaceAll": {
         if (!currentSearch) return;
         editor.chain().replaceAll().run();
+        editor.view.focus();
         return;
       }
 
       case "init": {
-        if (body.pasteRules) {
-          const yaml = editor.ci.resolve("yaml")! as any;
-          const pasteRules = yaml.toJSON(yaml.parse(body.pasteRules));
-
-          editor
-            .chain()
-            .setPasteRules(pasteRules)
-            .run();
-        }
-
-        baseDir = (body.baseDir || "").replaceAll('%2B', '+');
-        assetDir = body.assetDir || "";
-        const fileLocation = body.uri?.path ?? "";
-        documentTitle = fileLocation
-          ? fileLocation.substring(fileLocation.lastIndexOf("/") + 1)
-          : "";
-
+        // Loading converters may await WASM or image data. Prevent an edit
+        // from being overwritten before the initial document is installed.
+        editor.view.setProps({ editable: () => false });
+        modifyMutex++;
         try {
+          if (body.pasteRules) {
+            const yaml = editor.ci.resolve("yaml")! as any;
+            const pasteRules = yaml.toJSON(yaml.parse(body.pasteRules));
+
+            editor.chain().setPasteRules(pasteRules).run();
+          }
+
+          baseDir = (body.baseDir || "").replaceAll('%2B', '+');
+          assetDir = body.assetDir || "";
+          const fileLocation = body.uri?.path ?? "";
+          documentTitle = fileLocation
+            ? fileLocation.substring(fileLocation.lastIndexOf("/") + 1)
+            : "";
           const ext = fileLocation.split(".").pop()?.toLowerCase();
           switch (ext) {
             case "odt":
@@ -339,46 +421,75 @@ try {
               await editor.loadDocument("text/markdown", body.value);
               break;
           }
+          if (body.snapshot) applySnapshot(body.snapshot);
+          previousSnapshot = takeSnapshot(editor);
+          vscode.postMessage({ type: "initialized", body: { snapshot: previousSnapshot } });
         } catch (err) {
-          console.error(
-            "Failed editor init: ",
-            err,
-          );
-          report("error", "Failed editor init: " + err.message, err);
+          report("error", "Failed editor init", err);
+        } finally {
+          modifyMutex--;
+          editor.view.setProps({ editable: () => body.editable !== false });
+        }
+        return;
+      }
+
+      case "restore": {
+        modifyMutex++;
+        try {
+          applySnapshot(body.snapshot);
+          editor.view.focus();
+        } catch (err) {
+          report("error", "Failed to restore document", err);
+        } finally {
+          modifyMutex--;
         }
         return;
       }
 
       case "getFileData": {
-        try {
-          const mime = body.mime || "text/markdown";
-          const isSave = !!body.isSave;
-          
-          rewriteCtx.isSave = isSave;
-          rewriteCtx.images = new Map<string, Uint8Array>();
+        const exportDocument = async () => {
+          const originalAssetDir = assetDir;
+          try {
+            const mime = body.mime || "text/markdown";
+            const isSave = !!body.isSave;
 
-          const bytes = await editor.saveDocument(mime);
+            if (typeof body.assetDir === "string") assetDir = body.assetDir;
+            rewriteCtx.isSave = isSave;
+            rewriteCtx.images = new Map<string, Uint8Array>();
 
-          rewriteCtx.isSave = false;
+            const snapshot = takeSnapshot(editor);
+            const bytes = await editor.saveDocument(mime);
 
-          const output = mime === "text/html"
-            ? wrapHtmlDocument(documentTitle, new TextDecoder().decode(bytes))
-            : bytes;
+            rewriteCtx.isSave = false;
 
-          vscode.postMessage({
-            requestId: envelope.requestId,
-            body: {
-               data: Array.from(output),
-               images: Array.from(rewriteCtx.images.entries())
-            },
-          });
-        } catch (err) {
-          report("error", "Failed to save document", err);
-          vscode.postMessage({
-            requestId: envelope.requestId,
-            body: [],
-          });
-        }
+            const output = mime === "text/html"
+              ? wrapHtmlDocument(documentTitle, new TextDecoder().decode(bytes))
+              : bytes;
+
+            vscode.postMessage({
+              requestId: envelope.requestId,
+              body: {
+                data: Array.from(output),
+                images: Array.from(rewriteCtx.images.entries()),
+                snapshot,
+              },
+            });
+          } catch (err) {
+            report("error", "Failed to save document", err);
+            vscode.postMessage({
+              requestId: envelope.requestId,
+              body: { error: String(err) },
+            });
+          } finally {
+            assetDir = originalAssetDir;
+            rewriteCtx.isSave = false;
+            rewriteCtx.images = new Map<string, Uint8Array>();
+          }
+        };
+        // A converter can await image hashing. Serialize exports so Save As
+        // and autosave cannot mix their image maps or destination paths.
+        exportQueue = exportQueue.then(exportDocument, exportDocument);
+        await exportQueue;
         return;
       }
 
@@ -394,33 +505,34 @@ try {
 
       case "update": {
         try {
-          modifyMutex = 1;
+          modifyMutex++;
           const mime = body.mime || "text/markdown";
           await editor.patchDocument(mime, body.value);
+          previousSnapshot = takeSnapshot(editor);
+          vscode.postMessage({ type: "initialized", body: { snapshot: previousSnapshot } });
         } catch (err) {
           report("error", "Failed to update document" + err.message, err);
         } finally {
-          modifyMutex = 0;
+          modifyMutex--;
         }
         return;
       }
     }
   });
 
-  const changeListener = debounce(async () => {
+  const changeListener = () => {
     if (modifyMutex) {
       return;
     }
 
-    rewriteCtx.isVsCode = true;
-    const bytes = await editor.saveDocument("text/markdown");
-    rewriteCtx.isVsCode = false;
-
+    const snapshot = takeSnapshot(editor);
+    const before = previousSnapshot;
+    previousSnapshot = snapshot;
     vscode.postMessage({
-      type: "update",
-      body: Array.from(bytes),
+      type: "edit",
+      body: { before, after: snapshot },
     });
-  }, 500);
+  };
 
   editor.addEventListener('changed', changeListener);
 

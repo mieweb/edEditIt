@@ -45,7 +45,7 @@ fixture with unresolved placeholders.
 ### Phase 1 — Kerebron editor (VS Code)
 - [x] Register the custom editor for `.md`, `.ededit` (Markdown content), and `.odt`
 - [x] Bundle Kerebron `CoreEditor`, `AdvancedEditorKit`, and WASM assets in the webview
-- [x] Sync Markdown document ↔ editor via `WorkspaceEdit`; load ODT and save/export Markdown or HTML through the custom document provider
+- [x] Native custom-document dirty state, save/close prompts, undo/redo, rich backups, and clean external reload; load ODT and save/export Markdown or HTML. See [lifecycle and validation](docs/desktop-lifecycle.md).
 
 ### Phase 2 — MDY field links & resolver editing
 - [ ] Recognize and protect data-backed field links; show front matter and diagnostics
